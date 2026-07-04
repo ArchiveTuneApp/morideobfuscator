@@ -20,8 +20,8 @@ internal class RhinoTransformExecutor {
         input: String,
     ): String =
         execute(
-            program = plan.signatureProgram ?: throw MoriCipherException("Signature transform is unavailable"),
-            functionName = plan.signatureFunction ?: throw MoriCipherException("Signature transform is unavailable"),
+            program = plan.signatureProgram ?: throw MoriCipherCapabilityException("Signature transform is unavailable"),
+            functionName = plan.signatureFunction ?: throw MoriCipherCapabilityException("Signature transform is unavailable"),
             input = input,
         )
 
@@ -30,8 +30,8 @@ internal class RhinoTransformExecutor {
         input: String,
     ): String =
         execute(
-            program = plan.nProgram ?: throw MoriCipherException("Throttle transform is unavailable"),
-            functionName = plan.nFunction ?: throw MoriCipherException("Throttle transform is unavailable"),
+            program = plan.nProgram ?: throw MoriCipherCapabilityException("Throttle transform is unavailable"),
+            functionName = plan.nFunction ?: throw MoriCipherCapabilityException("Throttle transform is unavailable"),
             input = input,
         )
 
