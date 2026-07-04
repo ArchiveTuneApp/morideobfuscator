@@ -15,7 +15,7 @@ internal class JavaScriptPlanCompiler {
         nowMillis: Long,
     ): TransformPlan {
         val signatureFunction = findFunctionName(script.source, signatureCallPatterns)
-        val nFunction = findFunctionName(script.source, nCallPatterns)
+        val nFunction = findNFunctionName(script.source)
         val signatureProgram = signatureFunction?.let { buildProgram(script.source, it) }
         val nProgram = nFunction?.let { buildProgram(script.source, it) }
 
@@ -47,6 +47,34 @@ internal class JavaScriptPlanCompiler {
                 ?.getOrNull(1)
                 ?.takeIf(IDENTIFIER_PATTERN::matches)
         }
+
+    private fun findNFunctionName(source: String): String? {
+        findFunctionName(source, nCallPatterns)?.let { return it }
+        for (pattern in nArrayCallPatterns) {
+            val match = pattern.find(source) ?: continue
+            val arrayName = match.groupValues.getOrNull(1)?.takeIf { IDENTIFIER_PATTERN.matches(it) } ?: continue
+            val index = match.groupValues.getOrNull(2)?.toIntOrNull() ?: 0
+            resolveArrayElement(source, arrayName, index)?.let { return it }
+        }
+        return null
+    }
+
+    private fun resolveArrayElement(
+        source: String,
+        arrayName: String,
+        index: Int,
+    ): String? {
+        val escaped = Regex.escape(arrayName)
+        val pattern = Regex("""(?:var|let|const)\s+$escaped\s*=\s*\[([^\]]*)\]""")
+        return pattern
+            .find(source)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.split(",")
+            ?.getOrNull(index)
+            ?.trim()
+            ?.takeIf { IDENTIFIER_PATTERN.matches(it) }
+    }
 
     private fun findSignatureTimestamp(source: String): Int? =
         signatureTimestampPatterns.firstNotNullOfOrNull { regex ->
@@ -99,8 +127,8 @@ internal class JavaScriptPlanCompiler {
         val candidates =
             listOf(
                 Regex("""function\s+$escaped\s*\(""") to DeclarationKind.FUNCTION,
-                Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*function\s*\(""") to DeclarationKind.ASSIGNMENT,
-                Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*\{""") to DeclarationKind.OBJECT,
+                Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*function\s*\(""") to DeclarationKind.ASSIGNMENT,                Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\\w$]*)\s*=>\s*\{""") to DeclarationKind.ARROW_BLOCK,
+                Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\\w$]*)\s*=>\s*[^{;\\s]""") to DeclarationKind.ARROW_EXPR,                Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*\{""") to DeclarationKind.OBJECT,
                 Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*\[""") to DeclarationKind.ARRAY,
                 Regex("""(?:^|[;,])\s*(?:var|let|const)?\s*$escaped\s*=\s*[A-Za-z_$][\w$]*\s*;""") to DeclarationKind.SIMPLE,
             )
@@ -113,6 +141,10 @@ internal class JavaScriptPlanCompiler {
                     DeclarationKind.FUNCTION,
                     DeclarationKind.ASSIGNMENT,
                     -> findBalancedDeclarationEnd(source, match.range.last + 1, '{', '}')
+
+                    DeclarationKind.ARROW_BLOCK -> findBalancedDeclarationEnd(source, match.range.last, '{', '}')
+
+                    DeclarationKind.ARROW_EXPR -> source.indexOf(';', match.range.last).takeIf { it >= 0 }
 
                     DeclarationKind.OBJECT -> findBalancedDeclarationEnd(source, match.range.last, '{', '}')
 
@@ -197,6 +229,8 @@ internal class JavaScriptPlanCompiler {
     private enum class DeclarationKind {
         FUNCTION,
         ASSIGNMENT,
+        ARROW_BLOCK,
+        ARROW_EXPR,
         OBJECT,
         ARRAY,
         SIMPLE,
@@ -214,12 +248,20 @@ internal class JavaScriptPlanCompiler {
                 Regex("""\.set\(\s*["'](?:signature|sig)["']\s*,\s*([A-Za-z_$][\w$]*)\("""),
                 Regex("""["']signature["']\s*,\s*([A-Za-z_$][\w$]*)\("""),
                 Regex("""\bc\s*&&\s*\(\s*c\s*=\s*([A-Za-z_$][\w$]*)\(decodeURIComponent"""),
+                Regex("""c\s*&&\s*\(\s*c\s*=\s*decodeURIComponent\s*\([^)]*\)\s*,\s*c\s*=\s*([A-Za-z_$][\\w$]*)\s*\("""),
+                Regex("""\.set\(\s*["']alr["'][^;]*;\s*c\s*&&\s*\(\s*c\s*=\s*([A-Za-z_$][\\w$]*)\("""),
             )
         val nCallPatterns =
             listOf(
-                Regex("""\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\([^=]+=\s*([A-Za-z_$][\w$]*)\("""),
-                Regex("""\.set\(\s*["']n["']\s*,\s*([A-Za-z_$][\w$]*)\("""),
-                Regex("""\bn\s*&&\s*\(\s*n\s*=\s*([A-Za-z_$][\w$]*)\(n\)"""),
+                Regex("""\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\([^=]+=\s*([A-Za-z_$][\\w$]*)\("""),
+                Regex("""\.set\(\s*["']n["']\s*,\s*([A-Za-z_$][\\w$]*)\("""),
+                Regex("""\bn\s*&&\s*\(\s*n\s*=\s*([A-Za-z_$][\\w$]*)\(n\)"""),
+            )
+        val nArrayCallPatterns =
+            listOf(
+                Regex("""\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\([^=]+=\s*([A-Za-z_$][\\w$]*)\s*\[\s*(\\d+)\s*\]\s*\("""),
+                Regex("""\bn\s*&&\s*\(\s*n\s*=\s*([A-Za-z_$][\\w$]*)\s*\[\s*(\\d+)\s*\]\s*\(n\)"""),
+                Regex("""\.set\(\s*["']n["']\s*,\s*([A-Za-z_$][\\w$]*)\s*\[\s*(\\d+)\s*\]\s*\("""),
             )
         val signatureTimestampPatterns =
             listOf(

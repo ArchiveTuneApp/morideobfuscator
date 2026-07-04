@@ -131,14 +131,15 @@ internal class PlayerScriptClient(
         const val MAX_DISCOVERY_BYTES = 1_000_000
         const val MAX_PLAYER_BYTES = 5_000_000
         const val USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36"
+            "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/137.0 Mobile Safari/537.36"
         val VIDEO_ID_PATTERN = Regex("^[A-Za-z0-9_-]{11}$")
         val PLAYER_ID_PATTERN = Regex("/s/player/([A-Za-z0-9_-]+)/")
         val playerPathPatterns =
             listOf(
                 Regex("""["']([^"']*/s/player/[A-Za-z0-9_-]+/[^"']*base\.js)["']"""),
-                Regex("""(?:jsUrl|PLAYER_JS_URL)["']?\s*:\s*["']([^"']+base\.js)["']"""),
+                Regex("""(?:jsUrl|PLAYER_JS_URL|jsPath|script)["']?\s*:\s*["']([^"']+base\.js)["']"""),
+                Regex("""src\s*=\s*["']([^"']+/s/player/[^"']+base\.js)["']"""),
             )
         val playerIdPattern = Regex("""\\?/s\\?/player\\?/([A-Za-z0-9_-]+)\\?/""")
     }
