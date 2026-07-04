@@ -87,10 +87,12 @@ object MoriCipherRuntime : MoriCipherResolver {
                             lastFailure = null,
                         )
                     val script = currentEngine.client.fetch(videoId)
-                    val compiledPlan = currentEngine.compiler.compile(script, now)
                     val plan =
-                        executionMutex.withLock {
-                            validatePlan(currentEngine, compiledPlan)
+                        withContext(Dispatchers.Default) {
+                            val compiledPlan = currentEngine.compiler.compile(script, now)
+                            executionMutex.withLock {
+                                validatePlan(currentEngine, compiledPlan)
+                            }
                         }
                     if (
                         plan.signatureProgram == null &&
