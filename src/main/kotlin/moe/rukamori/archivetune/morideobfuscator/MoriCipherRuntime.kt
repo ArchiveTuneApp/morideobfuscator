@@ -116,22 +116,24 @@ object MoriCipherRuntime : MoriCipherResolver {
                     ) {
                         throw MoriCipherException("Player configuration contained no usable capability")
                     }
-                    val artifact = CachedTransformArtifact(plan, script.source)
+                    val completedAtMillis = System.currentTimeMillis()
+                    val completedPlan = plan.copy(createdAtMillis = completedAtMillis)
+                    val artifact = CachedTransformArtifact(completedPlan, script.source)
                     withContext(Dispatchers.IO) { currentEngine.store.write(artifact) }
                     updateRefreshProgress(REFRESH_PERSISTED_PROGRESS)
                     currentEngine.artifact = artifact
                     mutableSnapshot.value =
                         CipherSnapshot(
-                            status = plan.runtimeStatus(),
-                            playerId = plan.playerId,
-                            lastSuccessfulRefreshMillis = now,
-                            nextRefreshAtMillis = now + currentEngine.config.refreshIntervalMillis,
-                            lastFailure = plan.capabilityWarning(),
+                            status = completedPlan.runtimeStatus(),
+                            playerId = completedPlan.playerId,
+                            lastSuccessfulRefreshMillis = completedAtMillis,
+                            nextRefreshAtMillis = completedAtMillis + currentEngine.config.refreshIntervalMillis,
+                            lastFailure = completedPlan.capabilityWarning(),
                         )
                     CipherRefreshResult(
-                        playerId = plan.playerId,
-                        refreshedAtMillis = now,
-                        changed = current?.plan?.sourceSha256 != plan.sourceSha256,
+                        playerId = completedPlan.playerId,
+                        refreshedAtMillis = completedAtMillis,
+                        changed = current?.plan?.sourceSha256 != completedPlan.sourceSha256,
                     )
                 }.onFailure { failure ->
                     if (failure is CancellationException) throw failure
