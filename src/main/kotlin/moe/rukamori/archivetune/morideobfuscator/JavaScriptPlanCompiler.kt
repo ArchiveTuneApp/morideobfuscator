@@ -179,7 +179,7 @@ internal class JavaScriptPlanCompiler {
         }
 
         if (rootName !in declarations) return null
-        
+
         val namespaceInitializers =
             namespaceOwners.joinToString(separator = "\n") { owner -> "var $owner={};" }
         val baseProgram = declarations.values.reversed().joinToString(separator = "\n")
@@ -192,7 +192,7 @@ internal class JavaScriptPlanCompiler {
                 }
                 append(baseProgram)
             }
-        
+
         return program.takeIf { it.length <= MAX_PROGRAM_LENGTH }
     }
 
@@ -266,14 +266,15 @@ internal class JavaScriptPlanCompiler {
         var declarationStart = nameStart
         if ('.' !in name && nameStart > 0 && source[nameStart - 1].isWhitespace()) {
             val keywordEnd = skipWhitespaceBackward(source, nameStart - 1)
-            declarationKeywords.firstOrNull { keyword ->
-                val keywordStart = keywordEnd - keyword.length + 1
-                keywordStart >= 0 &&
-                    source.startsWith(keyword, keywordStart) &&
-                    source.getOrNull(keywordStart - 1)?.isJavaScriptIdentifierPart() != true
-            }?.let { keyword ->
-                declarationStart = keywordEnd - keyword.length + 1
-            }
+            declarationKeywords
+                .firstOrNull { keyword ->
+                    val keywordStart = keywordEnd - keyword.length + 1
+                    keywordStart >= 0 &&
+                        source.startsWith(keyword, keywordStart) &&
+                        source.getOrNull(keywordStart - 1)?.isJavaScriptIdentifierPart() != true
+                }?.let { keyword ->
+                    declarationStart = keywordEnd - keyword.length + 1
+                }
         }
 
         val delimiterIndex = skipWhitespaceBackward(source, declarationStart - 1)
@@ -340,13 +341,34 @@ internal class JavaScriptPlanCompiler {
                 continue
             }
             when (current) {
-                '\'', '"', '`' -> quote = current
-                '(' -> parentheses++
-                ')' -> parentheses--
-                '[' -> brackets++
-                ']' -> brackets--
-                '{' -> braces++
-                '}' -> braces--
+                '\'', '"', '`' -> {
+                    quote = current
+                }
+
+                '(' -> {
+                    parentheses++
+                }
+
+                ')' -> {
+                    parentheses--
+                }
+
+                '[' -> {
+                    brackets++
+                }
+
+                ']' -> {
+                    brackets--
+                }
+
+                '{' -> {
+                    braces++
+                }
+
+                '}' -> {
+                    braces--
+                }
+
                 ',', ';' -> {
                     if (parentheses == 0 && brackets == 0 && braces == 0) return index - 1
                 }
@@ -432,12 +454,12 @@ internal class JavaScriptPlanCompiler {
         const val FUNCTION_KEYWORD = "function"
         val IDENTIFIER_PATTERN = Regex("""^[A-Za-z_$][\w$]*$""")
         val declarationKeywords = arrayOf("var", "let", "const")
-        
+
         val dependencyPattern = Regex("""(?<!\.|\])\b([A-Za-z_$][\w$]*)\s*\(""")
         val qualifiedDependencyPattern =
             Regex("""\b([A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*)\b""")
         val propertyOwnerPattern = Regex("""\b([A-Za-z_$][\w$]*)\s*(?:\.|\[)""")
-        
+
         val signatureCallPatterns =
             listOf(
                 Regex("""(?:signature|sig)\s*[,=:]\s*([A-Za-z_$][\w$]*)\("""),
@@ -446,15 +468,23 @@ internal class JavaScriptPlanCompiler {
                 Regex("""\bc\s*&&\s*\(\s*c\s*=\s*([A-Za-z_$][\w$]*)\(decodeURIComponent"""),
                 Regex("""c\s*&&\s*\(\s*c\s*=\s*decodeURIComponent\s*\([^)]*\)\s*,\s*c\s*=\s*([A-Za-z_$][\w$]*)\s*\("""),
                 Regex("""\.set\(\s*["']alr["'][^;]*;\s*c\s*&&\s*\(\s*c\s*=\s*([A-Za-z_$][\w$]*)\("""),
-                Regex("""(?:\b(?:a|b|c|sig|signature)\s*=\s*|decodeURIComponent\([^)]*\)\s*=\s*)([A-Za-z_$][\w$]*)\(decodeURIComponent\(""")
+                Regex(
+                    """(?:\b(?:a|b|c|sig|signature)\s*=\s*|decodeURIComponent\([^)]*\)\s*=\s*)([A-Za-z_$][\w$]*)\(decodeURIComponent\(""",
+                ),
             )
-            
+
         val nCallPatterns =
             listOf(
-                Regex("""\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
+                Regex(
+                    """\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)""",
+                ),
                 Regex("""\[\s*["']n["']\s*]\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
-                Regex("""String\.fromCharCode\(\s*110\s*\)[\s\S]{0,256}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
-                Regex("""["']nn["']\s*\[\s*\+[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\s*\][\s\S]{0,512}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
+                Regex(
+                    """String\.fromCharCode\(\s*110\s*\)[\s\S]{0,256}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)""",
+                ),
+                Regex(
+                    """["']nn["']\s*\[\s*\+[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\s*\][\s\S]{0,512}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)""",
+                ),
                 Regex("""\.set\(\s*["']n["']\s*,\s*([A-Za-z_$][\w$]*)\s*\("""),
             )
 
@@ -462,8 +492,12 @@ internal class JavaScriptPlanCompiler {
             listOf(
                 Regex("""\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\("""),
                 Regex("""\[\s*["']n["']\s*]\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\("""),
-                Regex("""String\.fromCharCode\(\s*110\s*\)[\s\S]{0,256}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\("""),
-                Regex("""["']nn["']\s*\[\s*\+[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\s*\][\s\S]{0,512}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\("""),
+                Regex(
+                    """String\.fromCharCode\(\s*110\s*\)[\s\S]{0,256}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\(""",
+                ),
+                Regex(
+                    """["']nn["']\s*\[\s*\+[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\s*\][\s\S]{0,512}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\(""",
+                ),
                 Regex("""\.set\(\s*["']n["']\s*,\s*([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*]\s*\("""),
             )
 
@@ -475,22 +509,69 @@ internal class JavaScriptPlanCompiler {
                 Regex("""\[\s*["']n["']\s*]\s*\)\s*&&"""),
                 Regex("""\.set\(\s*["']n["']\s*,"""),
             )
-            
+
         val signatureTimestampPatterns =
             listOf(
                 Regex("""signatureTimestamp["']?\s*[:=]\s*(\d{4,8})"""),
                 Regex("""["']STS["']\s*:\s*(\d{4,8})"""),
                 Regex("""\bsts\s*[:=]\s*(\d{4,8})"""),
             )
-            
+
         val ignoredIdentifiers =
             setOf(
-                "Array", "BigInt", "Boolean", "Date", "Error", "Function", "Intl", "JSON", "Map", "Math",
-                "Number", "Object", "Promise", "RegExp", "Set", "String", "Symbol", "Uint8Array", "WeakMap", "WeakSet",
-                "clearInterval", "clearTimeout", "decodeURI", "decodeURIComponent", "encodeURI", "encodeURIComponent",
-                "isFinite", "isNaN", "parseFloat", "parseInt", "queueMicrotask", "setInterval", "setTimeout",
-                "return", "if", "for", "while", "switch", "catch", "function", "var", "let", "const",
-                "true", "false", "null", "undefined", "NaN", "console", "window", "document", "this", "void"
+                "Array",
+                "BigInt",
+                "Boolean",
+                "Date",
+                "Error",
+                "Function",
+                "Intl",
+                "JSON",
+                "Map",
+                "Math",
+                "Number",
+                "Object",
+                "Promise",
+                "RegExp",
+                "Set",
+                "String",
+                "Symbol",
+                "Uint8Array",
+                "WeakMap",
+                "WeakSet",
+                "clearInterval",
+                "clearTimeout",
+                "decodeURI",
+                "decodeURIComponent",
+                "encodeURI",
+                "encodeURIComponent",
+                "isFinite",
+                "isNaN",
+                "parseFloat",
+                "parseInt",
+                "queueMicrotask",
+                "setInterval",
+                "setTimeout",
+                "return",
+                "if",
+                "for",
+                "while",
+                "switch",
+                "catch",
+                "function",
+                "var",
+                "let",
+                "const",
+                "true",
+                "false",
+                "null",
+                "undefined",
+                "NaN",
+                "console",
+                "window",
+                "document",
+                "this",
+                "void",
             )
     }
 
