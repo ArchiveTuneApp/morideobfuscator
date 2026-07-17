@@ -262,7 +262,7 @@ internal class JavaScriptPlanCompiler {
         source: String,
         nameStart: Int,
         name: String,
-    ): Int? {
+    ): Int {
         var declarationStart = nameStart
         if ('.' !in name && nameStart > 0 && source[nameStart - 1].isWhitespace()) {
             val keywordEnd = skipWhitespaceBackward(source, nameStart - 1)
@@ -276,17 +276,7 @@ internal class JavaScriptPlanCompiler {
                     declarationStart = keywordEnd - keyword.length + 1
                 }
         }
-
-        val delimiterIndex = skipWhitespaceBackward(source, declarationStart - 1)
-        return if (
-            delimiterIndex < 0 ||
-            source[delimiterIndex] == ';' ||
-            source[delimiterIndex] == ','
-        ) {
-            declarationStart
-        } else {
-            null
-        }
+        return declarationStart
     }
 
     private fun skipWhitespaceForward(
@@ -312,10 +302,22 @@ internal class JavaScriptPlanCompiler {
     private fun String.normalizedDeclaration(
         start: Int,
         end: Int,
-    ): String {
-        val declaration =
-            substring(start, (end + 1).coerceAtMost(length))
-                .trimStart(',', ';')
+    ) backend komplet nya dulu harus enterprise grade atau modifikasi ini untuk tambahkan Kriptografi Server: String {
+        val substring = substring(start, (end + 1).coerceAtMost(length))
+        var declaration = substring.trimStart(',', ';').trim()
+
+        if (declaration.contains('=') &&
+            !declaration.startsWith("var ") &&
+            !declaration.startsWith("let ") &&
+            !declaration.startsWith("const ") &&
+            !declaration.contains('.')
+        ) {
+            val lhs = declaration.substringBefore('=').trim()
+            if (IDENTIFIER_PATTERN.matches(lhs)) {
+                declaration = "var $declaration"
+            }
+        }
+
         return if (declaration.endsWith(';')) declaration else "$declaration;"
     }
 
@@ -468,24 +470,20 @@ internal class JavaScriptPlanCompiler {
                 Regex("""\bc\s*&&\s*\(\s*c\s*=\s*([A-Za-z_$][\w$]*)\(decodeURIComponent"""),
                 Regex("""c\s*&&\s*\(\s*c\s*=\s*decodeURIComponent\s*\([^)]*\)\s*,\s*c\s*=\s*([A-Za-z_$][\w$]*)\s*\("""),
                 Regex("""\.set\(\s*["']alr["'][^;]*;\s*c\s*&&\s*\(\s*c\s*=\s*([A-Za-z_$][\w$]*)\("""),
-                Regex(
-                    """(?:\b(?:a|b|c|sig|signature)\s*=\s*|decodeURIComponent\([^)]*\)\s*=\s*)([A-Za-z_$][\w$]*)\(decodeURIComponent\(""",
-                ),
+                Regex("""(?:\b(?:a|b|c|sig|signature)\s*=\s*|decodeURIComponent\([^)]*\)\s*=\s*)([A-Za-z_$][\w$]*)\(decodeURIComponent\("""),
+                Regex("""\b([A-Za-z_$][\w$]*)\s*=\s*function\([A-Za-z_$][\w$]*\)\s*\{\s*[A-Za-z_$][\w$]*\s*=\s*[A-Za-z_$][\w$]*\.split\("""),
+                Regex("""\.set\(\s*["']sig["']\s*,\s*([A-Za-z_$][\w$]*)\(""")
             )
 
         val nCallPatterns =
             listOf(
-                Regex(
-                    """\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)""",
-                ),
+                Regex("""\.get\(\s*["']n["']\s*\)\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
                 Regex("""\[\s*["']n["']\s*]\s*\)\s*&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
-                Regex(
-                    """String\.fromCharCode\(\s*110\s*\)[\s\S]{0,256}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)""",
-                ),
-                Regex(
-                    """["']nn["']\s*\[\s*\+[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\s*\][\s\S]{0,512}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)""",
-                ),
+                Regex("""String\.fromCharCode\(\s*110\s*\)[\s\S]{0,256}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
+                Regex("""["']nn["']\s*\[\s*\+[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\s*\][\s\S]{0,512}?&&\s*\(\s*[A-Za-z_$][\w$]*\s*=\s*([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)"""),
                 Regex("""\.set\(\s*["']n["']\s*,\s*([A-Za-z_$][\w$]*)\s*\("""),
+                Regex("""\b([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\s*\[\s*\d+\s*\]\s*\(\s*([A-Za-z_$][\w$]*)\s*\)"""),
+                Regex("""\b([A-Za-z_$][\w$]*)\([A-Za-z_$][\w$]*\)\s*;\s*[A-Za-z_$][\w$]*\s*=\s*\bString\.fromCharCode\(110\)""")
             )
 
         val nIndexedCallPatterns =
